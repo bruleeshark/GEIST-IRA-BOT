@@ -1,41 +1,46 @@
 use std::{env, error::Error};
-use config::{Config, File};
-use api::{get_interest_rate, make_borrow_transaction, make_deposit_transaction};
-use models::{InterestRate, Trade};
-use wallet::{sign_transaction, check_balance};
+use reqwest::Client;
+use serde::{Serialize, Deserialize};
+use std::collections::HashMap;
+use std::time::Instant;
 
-fn main() -> Result<(), Box<dyn Error>> {
-    let args: Vec<String> = env::args().collect();
-    let config = Config::default();
-    config.merge(File::with_name("config")).unwrap();
+#[derive(Deserialize, Debug)]
+struct LlamaswapResponse {
+    id: u64,
+    quote_amount: f64,
+    base_amount: f64,
+    timestamp: String,
+}
 
-    let threshold = config.get_float("threshold")?;
-    let wallet_address = config.get_str("wallet_address")?;
-    let web3_provider = config.get_str("web3_provider")?;
+fn get_llamaswap_rate(client: &Client, from_token: &str, to_token: &str) -> Result<LlamaswapResponse, Box<dyn Error>> {
+    let url = format!("https://api.llamaswap.com/v1/swap?from_token={}&to_token={}", from_token, to_token);
+    let res = client.get(&url)
+        .send()?
+        .json::<LlamaswapResponse>()?;
+    Ok(res)
+}
 
+fn main() {
+    let client = Client::new();
+    let min_spread = 0.005;
+    let mut rate_cache: HashMap<(String, String), (LlamaswapResponse, Instant)> = HashMap::new();
+    let mut borrow_token = "USDT".to_string();
+    let mut deposit_token = "DAI".to_string();
+    let cache_duration = std::time::Duration::from_secs(60 * 5);
     loop {
-        let interest_rates = get_interest_rate(web3_provider)?;
-        let trade = get_best_trade(interest_rates, threshold)?;
-
-        if let Some(t) = trade {
-            let borrow_transaction = make_borrow_transaction(t.borrow_token, t.borrow_amount, web3_provider)?;
-            let deposit_transaction = make_deposit_transaction(t.deposit_token, t.deposit_amount, web3_provider)?;
-            let borrow_signed = sign_transaction(borrow_transaction, wallet_address)?;
-            let deposit_signed = sign_transaction(deposit_transaction, wallet_address)?;
-            execute_transactions(borrow_signed, deposit_signed, web3_provider)?;
-        } else {
-            println!("No profitable trade found.")
+        let now = Instant::now();
+        let rate = rate_cache.entry((borrow_token.clone(), deposit_token.clone())).or_insert_with(|| {
+            (get_llamaswap_rate(&client, &borrow_token, &deposit_token).unwrap(), now)
+        });
+        if now.duration_since(rate.1) > cache_duration {
+            let new_rate = get_llamaswap_rate(&client, &borrow_token, &deposit_token).unwrap();
+            *rate = (new_rate, Instant::now());
         }
-        // Sleep for a certain period of time before checking again
+        if rate.0.quote_amount / rate.0.base_amount - 1.0 > min_spread {
+            println!("Executing trade on Llamaswap: {} {} -> {} {}", rate.0.base_amount, borrow_token, rate.0.quote_amount, deposit_token);
+        } else {
+            println!("Spread too small to execute trade.");
+        }
         std::thread::sleep(std::time::Duration::from_secs(60));
     }
-}
-
-fn get_best_trade(interest_rates: Vec<InterestRate>, threshold: f32) -> Result<Option<Trade>, Box<dyn Error>> {
-    // Iterate over the interest rates and check for a profitable trade
-    // Return the trade struct if found, otherwise return None
-}
-
-fn execute_transactions(borrow_signed: String, deposit_signed: String, web3_provider: &str) -> Result<(), Box<dyn Error>> {
-    // Send the signed transactions to the blockchain
 }
