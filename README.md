@@ -1,10 +1,9 @@
-Our trading bot project is a command-line tool that allows users to automatically trade assets on the Ethereum blockchain.
+Our trading bot project is a command-line tool that allows users to automatically trade assets on the blockchain.
 
 * The bot uses web3 providers to query the blockchain for interest rates and other data, and then makes trades based on user-specified thresholds and parameters.
 
-* The bot also includes functions for interacting with the user's wallet, such as signing transactions and checking balances.
-
-* The bot is written in Rust programming language and uses the Ethereum blockchain.
+The trading bot attempts to borrow one variety of stablecoin for less interest than can be earned from depositing a different stablecoin.
+Thusly : single-market interest rate arbitrage.
 
 * The config module is responsible for storing the configuration parameters of the bot, such as the threshold for making a trade, the wallet address, etc.
 
