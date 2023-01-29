@@ -1,1 +1,10 @@
-This file would contain the configuration parameters for your bot, such as the threshold for making a trade, the wallet address, etc.
+# config.toml
+
+[general]
+threshold = 0.005
+wallet_address = "0x1234567890abcdef1234567890abcdef12345678"
+web3_provider = "https://mainnet.infura.io/v3/YOUR-PROJECT-ID"
+
+[tokens]
+borrow_token = "USDT"
+deposit_token = "DAI"
