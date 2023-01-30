@@ -1,4 +1,4 @@
-Our trading bot project is a command-line tool that allows users to automatically trade assets on the blockchain.
+trading bot project is a command-line tool that allows users to automatically trade assets on the blockchain.
 
 * The bot uses web3 providers to query the blockchain for interest rates and other data, and then makes trades based on user-specified thresholds and parameters.
 
